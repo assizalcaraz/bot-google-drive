@@ -1,0 +1,156 @@
+:root {
+    --bg-color: #0b0c10;
+    --text-color: #e0e0e0;
+    --card-bg: #131720;
+    --accent: #556b8d;
+    --gradient-dark: linear-gradient(to bottom, #0b0c10, #1a1d27);
+}
+
+body {
+    font-family: sans-serif;
+    margin: 0;
+    background: var(--bg-color);
+    color: var(--text-color);
+    transition: background 0.3s, color 0.3s;
+}
+
+.navbar {
+    background: transparent;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.toggle-btn {
+    background: var(--accent);
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.contenedor {
+    max-width: 1200px;
+    margin: 2rem auto;
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 0 12px rgba(0,0,0,0.2);
+    background: var(--gradient-dark);
+    position: relative;
+}
+
+.contenedor::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: radial-gradient(ellipse at center, rgba(255,0,120,0.8) 0%, rgba(255,0,120,0.1) 40%, transparent 100%);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    filter: blur(1px);
+    animation: pulseLine 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulseLine {
+    0%   { background-position: center top; opacity: 1; }
+    100% { background-position: center bottom; opacity: 0.6; }
+}
+
+@keyframes fadeInBar {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInItem {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+    to { opacity: 1; transform: translateY(0); }
+}
+    100% { background-position: center bottom; opacity: 0.6; }
+}
+
+h2 {
+    color: var(--accent);
+    margin: 0 0 1rem 0;
+}
+
+ul {
+    list-style: none;
+    padding-left: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 1rem;
+    display: block;
+}
+li {
+    margin-bottom: 0.3em;
+    opacity: 0;
+    animation: fadeInItem 0.4s ease forwards;
+    transform: translateY(-5px);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.descargado {
+    color: limegreen;
+}
+.saltado {
+    color: orange;
+}
+.error {
+    color: red;
+}
+.carpeta {
+    font-weight: bold;
+    margin-top: 1rem;
+}
+.progreso {
+    margin: 1rem 0;
+    font-size: 1.1rem;
+}
+
+.final {
+    background: rgba(100, 255, 100, 0.1);
+    padding: 1rem;
+    border-radius: 5px;
+    margin-top: 1rem;
+    color: var(--text-color);
+}
+
+.flex-header {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 2rem;
+}
+
+.barra-externa {
+    background: #333;
+    border-radius: 5px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 200px;
+    height: 20px;
+    align-self: flex-start;
+    opacity: 0;
+    animation: fadeInBar 1s ease forwards;
+    animation-delay: 0.5s;
+}
+
+.barra-interna {
+    background: linear-gradient(to bottom, #669ea5, #415a5e);
+    width: 0%;
+    height: 100%;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+    transition: width 0.3s ease, background-position 0.3s ease;
+}
