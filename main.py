@@ -4,16 +4,15 @@ import time
 import datetime
 import sqlite3
 import random
-
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template_string, Response
-from utils import crear_carpeta_y_compartir, get_services
-from dateutil import parser as date_parser
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaInMemoryUpload
-
-
-
+from utils import get_services
+from dateutil import parser as date_parser
 from html_helpers.html_styles import render_head_html, render_html_close
-
 
 app = Flask(__name__)
 
@@ -35,18 +34,111 @@ c.execute('''
 ''')
 conn.commit()
 
+
+# Función para gestionar reintentos exponenciales
+def reintento_exponencial(request_func, *args, **kwargs):
+    retries = 5
+    backoff = 1  # Tiempo inicial de espera en segundos
+    max_backoff = 64  # Máximo tiempo de espera entre reintentos
+
+    for attempt in range(retries):
+        try:
+            return request_func(*args, **kwargs)
+        except HttpError as err:
+            if err.resp.status == 403 or err.resp.status == 429:  # Si hay un error por límite de solicitudes
+                wait_time = min(backoff * (2 ** attempt), max_backoff)
+                print(f"❌ Error {err.resp.status}: Intento {attempt + 1} - esperando {wait_time} segundos.")
+                time.sleep(wait_time + random.randint(1, 5))  # Esperar tiempo exponencial más algo aleatorio
+            else:
+                raise
+    raise Exception("Se alcanzó el número máximo de intentos")
+
+def actualizar_link_en_hoja(sheet, row_index, link):
+    """ Actualiza el link en la columna 'link' para el estudiante en la hoja base. """
+    try:
+        sheet.update_cell(row_index, 3, link)  # Columna 'C' es la 3
+        print(f"✅ Enlace actualizado en la fila {row_index}: {link}")
+    except Exception as e:
+        print(f"❌ Error al actualizar el link en la fila {row_index}: {e}")
+
+
+# Función para enviar correo electrónico con el enlace de la carpeta
+def enviar_email(destinatario, nombre, link):
+    try:
+        # Configuración del servidor de correo
+        servidor = smtplib.SMTP('smtp.gmail.com', 587)
+        servidor.starttls()
+        servidor.login('tucorreo@gmail.com', 'tucontraseña')  # Cambiar por tus datos
+
+        # Crear el mensaje
+        mensaje = MIMEMultipart()
+        mensaje['From'] = 'tucorreo@gmail.com'  # Cambiar por tu email
+        mensaje['To'] = destinatario
+        mensaje['Subject'] = f"Tu carpeta de {nombre} en Drive"
+        cuerpo = f"Hola {nombre},\n\nAquí tienes el enlace a tu carpeta en Google Drive:\n{link}\n\nSaludos."
+        mensaje.attach(MIMEText(cuerpo, 'plain'))
+
+        # Enviar el correo
+        servidor.sendmail('tucorreo@gmail.com', destinatario, mensaje.as_string())  # Cambiar por tu email
+        servidor.quit()
+        print(f"✅ Correo enviado a {destinatario}")
+    except Exception as e:
+        print(f"❌ Error al enviar correo a {destinatario}: {e}")
+
+
+# Función para crear las carpetas y compartir el enlace
+def crear_carpeta_y_compartir(nombre, mail, parent_folder_id):
+    try:
+        drive_service, _ = get_services()
+
+        # Crear carpeta en Google Drive
+        folder_metadata = {
+            'name': nombre,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [parent_folder_id]
+        }
+
+        # Crear carpeta en Google Drive, asegurándonos de que la respuesta sea procesada correctamente
+        folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
+
+        folder_id = folder.get('id')  # Recuperamos el ID de la carpeta creada
+
+        # Link de la carpeta
+        link = f"https://drive.google.com/drive/folders/{folder_id}"
+
+        # COMENTADO: Compartir la carpeta con el correo del estudiante (actualmente no se realiza)
+        # permission = {
+        #     'type': 'user',
+        #     'role': 'reader',  # 'reader' para solo lectura
+        #     'emailAddress': mail
+        # }
+        # drive_service.permissions().create(fileId=folder_id, body=permission).execute()
+        # print(f"✅ Carpeta compartida con {mail} para {nombre}")
+
+        return link  # Devolvemos solo el link de la carpeta creada sin compartirla
+
+    except Exception as e:
+        print(f"❌ Error al crear la carpeta para {nombre}: {e}")
+        return ""
+
+
+@app.route('/')
 @app.route('/')
 def index():
     print("📡 Iniciando procesamiento de hoja...")
 
     try:
-        _, gc = get_services()
+        _, gc = get_services()  # Asegúrate de que esto está funcionando correctamente
         sheet = gc.open_by_url(SHEET_URL).sheet1
         data = sheet.get_all_records(expected_headers=["nombre", "mail", "link"])
 
+        if not data:
+            print("⚠️ No se encontraron datos en la hoja.")
+            return "No se encontraron datos en la hoja."
+
         creados = 0
 
-        for row in data:
+        for row_index, row in enumerate(data, start=2):  # Comienza desde la fila 2 (debido a la cabecera)
             nombre = row.get('nombre')
             mail = row.get('mail')
 
@@ -59,10 +151,17 @@ def index():
                 print(f"🔁 Ya procesado: {nombre} ({mail})")
                 continue
 
+            # Aquí se llama a la función con solo 3 parámetros: nombre, mail y PARENT_FOLDER_ID
             link = crear_carpeta_y_compartir(nombre, mail, PARENT_FOLDER_ID)
+
+            # Actualizar el enlace en la hoja de cálculo
+            actualizar_link_en_hoja(sheet, row_index, link)
+            
+            # Guardar en la base de datos
             c.execute("INSERT INTO estudiantes (nombre, mail, carpeta) VALUES (?, ?, ?)", (nombre, mail, link))
             conn.commit()
             print(f"✅ Carpeta creada: {nombre} → {link}")
+            
             creados += 1
 
         return f"Proceso finalizado. Carpetas nuevas: {creados}"
@@ -70,6 +169,25 @@ def index():
     except Exception as e:
         print(f"❌ Error: {e}")
         return f"Ocurrió un error: {e}"
+
+
+
+@app.route('/enviar-emails')
+def enviar_emails():
+    try:
+        conn = sqlite3.connect('database.db', check_same_thread=False)
+        c = conn.cursor()
+        registros = c.execute("SELECT nombre, mail, carpeta FROM estudiantes").fetchall()
+        
+        for nombre, mail, link in registros:
+            enviar_email(mail, nombre, link)
+        
+        return "Correos enviados con éxito."
+
+    except Exception as e:
+        print(f"❌ Error al enviar correos: {e}")
+        return f"❌ Error: {e}"
+
 
 @app.route('/descargar')
 def descargar_con_progreso():
@@ -87,10 +205,7 @@ def descargar_con_progreso():
 
             def escanear(folder_id, ruta_local):
                 query = f"'{folder_id}' in parents and trashed = false"
-                resultado = drive_service.files().list(
-                    q=query,
-                    fields="files(id, name, mimeType, modifiedTime)",
-                ).execute()
+                resultado = reintento_exponencial(drive_service.files().list, q=query, fields="files(id, name, mimeType, modifiedTime)")
 
                 for item in resultado.get("files", []):
                     nombre = item["name"]
@@ -161,17 +276,16 @@ def descargar_con_progreso():
                 mins, secs = divmod(int(tiempo_estimado), 60)
 
                 barra_js = f"""
-<script>
-    const barra = document.getElementById('barra-interna');
-    if (barra) {{
-        barra.style.width = '{porcentaje}%';
-        barra.innerText = '{porcentaje}%';
-    }}
-    const lista = document.getElementById('archivo-lista');
-    if (lista) {{ lista.scrollTop = 0; }}
-</script>
-"""
-
+                <script>
+                    const barra = document.getElementById('barra-interna');
+                    if (barra) {{
+                        barra.style.width = '{porcentaje}%';
+                        barra.innerText = '{porcentaje}%';
+                    }}
+                    const lista = document.getElementById('archivo-lista');
+                    if (lista) {{ lista.scrollTop = 0; }}
+                </script>
+                """
 
                 yield f"{barra_js}<li class='descargado' style='opacity: 1; transform: none;'>✅ [{idx}/{total}] {nombre} — ETA: {mins}m {secs}s</li>"
 
@@ -191,108 +305,14 @@ def descargar_con_progreso():
     return Response(generar(), mimetype='text/html')
 
 
-
-import random  # asegurate de tener este import arriba
-
-def generar_carpetas_de_prueba(base_dir="CARPETAS_PRUEBA"):
-    nombres = [
-        "Lucas", "Martina", "Agustín", "Camila", "Mateo", "Sofía", "Tomás", "Valentina",
-        "Benjamín", "Juana", "Santiago", "Mía", "Joaquín", "Isabella", "Franco", "Renata",
-        "Facundo", "Emma", "Thiago", "Catalina"
-    ]
-    extensiones = [".txt", ".jpg", ".mp4"]
-
-    os.makedirs(base_dir, exist_ok=True)
-
-    for nombre in nombres:
-        carpeta_path = os.path.join(base_dir, nombre)
-        os.makedirs(carpeta_path, exist_ok=True)
-
-        cantidad_archivos = random.randint(1, 5)
-        for i in range(cantidad_archivos):
-            ext = random.choice(extensiones)
-            nombre_archivo = f"{nombre.lower()}_{i+1}{ext}"
-            archivo_path = os.path.join(carpeta_path, nombre_archivo)
-
-            with open(archivo_path, "w") as f:
-                if ext == ".txt":
-                    f.write(f"Archivo de prueba {i+1} para {nombre}")
-                else:
-                    pass  # archivo vacío
-
-    print(f"✅ Carpetas generadas en '{base_dir}'")
-
-
-@app.route('/generar-prueba')
-def vista_generar_carpetas():
-    generar_carpetas_de_prueba()
-    return "Carpetas de prueba generadas."
-
-def crear_carpetas_prueba_en_drive(parent_id):
-    drive_service, _ = get_services()
-
-    nombres = [
-        "Lucas", "Martina", "Agustín", "Camila", "Mateo", "Sofía", "Tomás", "Valentina",
-        "Benjamín", "Juana", "Santiago", "Mía", "Joaquín", "Isabella", "Franco", "Renata",
-        "Facundo", "Emma", "Thiago", "Catalina"
-    ]
-    extensiones = [".txt", ".jpg", ".mp4"]
-
-    for nombre in nombres:
-        # Crear carpeta
-        folder_metadata = {
-            'name': nombre,
-            'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [parent_id]
-        }
-        folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
-        folder_id = folder.get('id')
-
-        # Crear archivos dentro
-        for i in range(random.randint(1, 5)):
-            ext = random.choice(extensiones)
-            file_name = f"{nombre.lower()}_{i+1}{ext}"
-            media = MediaInMemoryUpload(b"", mimetype="text/plain", resumable=False)  # archivo vacío
-
-            file_metadata = {
-                'name': file_name,
-                'parents': [folder_id]
-            }
-            drive_service.files().create(body=file_metadata, media_body=media).execute()
-
-    print("✅ Carpetas y archivos creados en Google Drive.")    
-
-
-@app.route('/generar-drive')
-def generar_en_drive():
-    crear_carpetas_prueba_en_drive(PARENT_FOLDER_ID)
-    return "Carpetas y archivos creados en Drive."
-
-@app.route('/sync-drive')
-def registrar_todas_las_carpetas_en_drive():
-    drive_service, _ = get_services()
-    query = f"'{PARENT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-    resultado = drive_service.files().list(q=query, fields="files(id, name)").execute()
-    nuevas = 0
-
-    for item in resultado.get("files", []):
-        nombre = item["name"]
-        file_id = item["id"]
-        link = f"https://drive.google.com/drive/folders/{file_id}"
-
-        c.execute("SELECT * FROM estudiantes WHERE nombre = ?", (nombre,))
-        if not c.fetchone():
-            c.execute("INSERT INTO estudiantes (nombre, mail, carpeta) VALUES (?, ?, ?)", (nombre, "", link))
-            conn.commit()
-            nuevas += 1
-
-    return f"Carpetas agregadas: {nuevas}"
-
-
-
-
+# Función de purga de la base de datos
+@app.route('/purgar-database')
+def purgar_db():
+    c.execute("DELETE FROM estudiantes")
+    conn.commit()
+    print("✅ Base de datos purgada")
+    return "Base de datos purgada exitosamente."
 
 
 if __name__ == '__main__':
-    print("🚀 Servidor Flask iniciado en http://127.0.0.1:5151")
     app.run(debug=True, host='0.0.0.0')
