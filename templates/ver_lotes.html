@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="contenedor">
+    <h2>🗂️ Visualización de lotes generados</h2>
+    <form method="POST" onsubmit="return confirm('¿Eliminar elementos seleccionados o aplicar cambios?')">
+        <input type="text" id="buscador" onkeyup="filtrarLotes()" placeholder="🔍 Buscar estudiante o archivo..." style="width: 80%; margin-bottom: 10px;">
+        {% for lote, html in arboles_html.items() %}
+            <h3> Estructura del lote: {{ lote }}</h3>
+            <ul>
+                {{ html|safe }}
+            </ul>
+        {% endfor %}
+        <button type="submit" style="margin-top: 1rem; padding: 8px 16px; background: red; color: white;">Aplicar cambios</button>
+    </form>
+
+    <h2 style="margin-top: 3rem;">➕ Añadir archivo o carpeta en estructura de lote</h2>
+    <form method="POST" action="/insertar-en-lote">
+        <label for="lote">Nombre del lote:</label><br>
+        <input type="text" id="lote" name="lote" style="width: 80%;" required><br><br>
+
+        <label for="ruta_relativa">Ruta relativa dentro del lote (ej: TPS/TP1/Audios):</label><br>
+        <input type="text" id="ruta_relativa" name="ruta_relativa" style="width: 80%;" required><br><br>
+
+        <label for="archivo_id">ID del archivo o carpeta a insertar:</label><br>
+        <input type="text" id="archivo_id" name="archivo_id" style="width: 80%;" required><br><br>
+
+        <button type="submit" style="padding: 8px 16px; background: green; color: white;">Insertar en ruta</button>
+    </form>
+    <div style="margin-top:20px; color: green;">{{ mensaje|safe }}</div>
+</div>
+
+<script>
+    function filtrarLotes() {
+        var input = document.getElementById('buscador');
+        var filtro = input.value.toLowerCase();
+        var items = document.getElementsByClassName('item-lote');
+        for (var i = 0; i < items.length; i++) {
+            var texto = items[i].innerText.toLowerCase();
+            items[i].style.display = texto.includes(filtro) ? '' : 'none';
+        }
+    }
+</script>
+{% endblock %}

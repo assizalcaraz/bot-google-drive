@@ -154,3 +154,17 @@ li {
     font-weight: bold;
     transition: width 0.3s ease, background-position 0.3s ease;
 }
+
+
+ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.nivel-0 { margin-left: 0em; }
+.nivel-1 { margin-left: 1.5em; }
+.nivel-2 { margin-left: 3em; }
+.nivel-3 { margin-left: 4.5em; }
+.nivel-4 { margin-left: 6em; }
+/* y así sucesivamente si tenés más profundidad */
+

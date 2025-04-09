@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Gestor de Lotes{% endblock %}</title>
+    <link rel="stylesheet" href="/static/estilos.css">
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.documentElement.classList.add('dark');
+        });
+        function toggleMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+    </script>
+</head>
+<body>
+    <div class="navbar">
+        <button class="toggle-btn" onclick="toggleMode()">🌓 Modo claro/oscuro</button>
+    </div>
+
+    {% block content %}
+    <!-- Contenido principal definido en cada vista -->
+    {% endblock %}
+</body>
+</html>

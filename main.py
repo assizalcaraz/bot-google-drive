@@ -7,7 +7,7 @@ import random
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Flask, render_template_string, Response, request
+from flask import Flask, render_template_string, Response, request, redirect, render_template
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaInMemoryUpload
 from utils import get_services
@@ -22,7 +22,7 @@ app = Flask(__name__)
 PARENT_FOLDER_ID = '14cPfGWwYmjsn-XJY4VteY5zwJqTKOcEc'
 
 # 📄 URL de la hoja de cálculo con los datos de estudiantes
-LISTA_ESTUDIANTES_URL = 'https://docs.google.com/spreadsheets/d/18QVgcXSCHbK1DrrojpCgUBoWVGlcUFhUYZvvk_6_bp8/edit#gid=0'
+LISTA_ESTUDIANTES_URL = 'https://docs.google.com/spreadsheets/d/1R5cEBAHo8DltUgrjY5C0oMymGkpHdrz2VSzHP20G260/edit?gid=0#gid=0'
 
 # 📄 ID del archivo base que será referenciado con accesos directos en cada carpeta de estudiante
 ACCESO_DIRECTO_GUIA_TRABAJOS_ID = "1cpEWP9RaaZSkwOtivCTt-w15V57RtmBzkwcMM41ZLb8"
@@ -241,84 +241,196 @@ def crear_acceso_directo(drive_service, carpeta_destino_id, nombre_acceso):
     except Exception as e:
         print(f"❌ Error al crear acceso directo {nombre_acceso}: {e}")
 
-
+@app.route('/copiar-carpeta', methods=['GET', 'POST'])
 @app.route('/copiar-carpeta', methods=['GET', 'POST'])
 def copiar_carpeta_a_estudiantes():
-    mensaje = ""
+    if request.method == 'GET':
+        return render_template_string('''
+            <h2>📁 Copiar carpeta en carpetas de estudiantes</h2>
+            <form method="POST">
+                <label for="carpeta_origen">Enlace o ID de la carpeta a copiar:</label><br>
+                <input type="text" id="carpeta_origen" name="carpeta_origen" style="width: 80%;" required><br><br>
 
-    if request.method == 'POST':
-        carpeta_origen_url = request.form.get("carpeta_origen")
-        nombre_base = request.form.get("nombre_base") or "ENTREGAS"
+                <label for="nombre_base">Nombre de la carpeta de destino (ej: ENTREGAS):</label><br>
+                <input type="text" id="nombre_base" name="nombre_base" style="width: 80%;" required><br><br>
 
-        if not carpeta_origen_url:
-            mensaje = "❌ Debes proporcionar el enlace o ID de la carpeta a copiar."
+                <button type="submit">Copiar a todos</button>
+            </form>
+        ''')
+
+    carpeta_origen_url = request.form.get("carpeta_origen")
+    nombre_base = request.form.get("nombre_base") or "ENTREGAS"
+
+    if not carpeta_origen_url:
+        return "❌ Debes proporcionar el enlace o ID de la carpeta a copiar."
+
+    try:
+        if "folders" in carpeta_origen_url:
+            carpeta_origen = carpeta_origen_url.split("/folders/")[-1].split("?")[0]
         else:
-            try:
-                if "folders" in carpeta_origen_url:
-                    carpeta_origen = carpeta_origen_url.split("/folders/")[-1].split("?")[0]
+            carpeta_origen = carpeta_origen_url.strip()
+
+        drive_service, _ = get_services()
+        conn = sqlite3.connect('database.db', check_same_thread=False)
+        c = conn.cursor()
+
+        c.execute('''CREATE TABLE IF NOT EXISTS acciones_lote (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            estudiante TEXT,
+            tipo TEXT,
+            nombre TEXT,
+            drive_id TEXT,
+            lote TEXT,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+
+        registros = c.execute("SELECT nombre, carpeta FROM estudiantes").fetchall()
+
+        def copiar_contenido(origen_id, destino_id, estudiante, lote, path=""):
+            query = f"'{origen_id}' in parents and trashed = false"
+            archivos = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+
+            for archivo in archivos.get("files", []):
+                ruta_relativa = f"{path}/{archivo['name']}".strip("/")
+                metadata = {
+                    'name': archivo['name'],
+                    'parents': [destino_id]
+                }
+
+                if archivo['mimeType'] == 'application/vnd.google-apps.folder':
+                    metadata['mimeType'] = 'application/vnd.google-apps.folder'
+                    nueva_carpeta = drive_service.files().create(body=metadata, fields='id').execute()
+                    c.execute("INSERT INTO acciones_lote (estudiante, tipo, nombre, drive_id, lote) VALUES (?, ?, ?, ?, ?)",
+                              (estudiante, 'carpeta', ruta_relativa, nueva_carpeta['id'], lote))
+                    conn.commit()
+                    copiar_contenido(archivo['id'], nueva_carpeta['id'], estudiante, lote, ruta_relativa)
                 else:
-                    carpeta_origen = carpeta_origen_url.strip()
+                    nuevo_archivo = drive_service.files().copy(fileId=archivo['id'], body=metadata).execute()
+                    c.execute("INSERT INTO acciones_lote (estudiante, tipo, nombre, drive_id, lote) VALUES (?, ?, ?, ?, ?)",
+                              (estudiante, 'archivo', ruta_relativa, nuevo_archivo['id'], lote))
+                    conn.commit()
 
-                drive_service, _ = get_services()
-                conn = sqlite3.connect('database.db', check_same_thread=False)
-                c = conn.cursor()
-                registros = c.execute("SELECT nombre, carpeta FROM estudiantes").fetchall()
+        for nombre, carpeta_url in registros:
+            destino_id = carpeta_url.split("/")[-1].split("?")[0]
+            query = f"'{destino_id}' in parents and name = '{nombre_base}' and trashed = false and mimeType = 'application/vnd.google-apps.folder'"
+            existentes = drive_service.files().list(q=query, fields='files(id)').execute().get('files', [])
 
-                def copiar_contenido(origen_id, destino_id):
-                    query = f"'{origen_id}' in parents and trashed = false"
-                    archivos = drive_service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+            if existentes:
+                print(f"⚠️ Ya existe '{nombre_base}' en la carpeta de {nombre}. Se omite.")
+                continue
 
-                    for archivo in archivos.get("files", []):
-                        nuevo_metadata = {
-                            'name': archivo['name'],
-                            'parents': [destino_id]
-                        }
-                        if archivo['mimeType'] == 'application/vnd.google-apps.folder':
-                            nuevo_metadata['mimeType'] = 'application/vnd.google-apps.folder'
-                            nueva_carpeta = drive_service.files().create(body=nuevo_metadata, fields='id').execute()
-                            copiar_contenido(archivo['id'], nueva_carpeta['id'])
-                        else:
-                            drive_service.files().copy(fileId=archivo['id'], body=nuevo_metadata).execute()
+            nueva_base = {
+                'name': nombre_base,
+                'mimeType': 'application/vnd.google-apps.folder',
+                'parents': [destino_id]
+            }
+            nueva_carpeta_base = drive_service.files().create(body=nueva_base, fields='id').execute()
 
-                for nombre, carpeta_url in registros:
-                    destino_id = carpeta_url.split("/")[-1].split("?")[0]
+            c.execute("INSERT INTO acciones_lote (estudiante, tipo, nombre, drive_id, lote) VALUES (?, ?, ?, ?, ?)",
+                      (nombre, 'carpeta', nombre_base, nueva_carpeta_base['id'], nombre_base))
+            conn.commit()
 
-                    # Verificar si ya existe una carpeta con ese nombre
-                    query = f"'{destino_id}' in parents and name = '{nombre_base}' and trashed = false and mimeType = 'application/vnd.google-apps.folder'"
-                    existentes = drive_service.files().list(q=query, fields='files(id)').execute().get('files', [])
+            copiar_contenido(carpeta_origen, nueva_carpeta_base['id'], nombre, nombre_base, nombre_base)
+            print(f"✅ Carpeta '{nombre_base}' copiada para {nombre}")
 
-                    if existentes:
-                        print(f"⚠️ Ya existe '{nombre_base}' en la carpeta de {nombre}. Se omite.")
-                        continue
+        return redirect(f"/lotes?lote={nombre_base}")
 
-                    nueva_base = {
-                        'name': nombre_base,
-                        'mimeType': 'application/vnd.google-apps.folder',
-                        'parents': [destino_id]
-                    }
-                    nueva_carpeta_base = drive_service.files().create(body=nueva_base, fields='id').execute()
-                    copiar_contenido(carpeta_origen, nueva_carpeta_base['id'])
-                    print(f"✅ Carpeta '{nombre_base}' copiada para {nombre}")
+    except Exception as e:
+        return f"❌ Error al copiar: {e}"
 
-                mensaje = f"✅ Carpeta '{nombre_base}' replicada exitosamente en todas las carpetas de estudiantes."
+# Aquí se reescribe y amplía desde cero la funcionalidad de acciones por lotes:
+# - Visualización jerárquica y buscador
+# - Eliminación múltiple con confirmación
+# - Modificación de nombre
+# - Inserción de archivos en rutas específicas
 
+
+@app.route('/lotes', methods=['GET', 'POST'])
+def ver_lotes():
+    conn = sqlite3.connect('database.db', check_same_thread=False)
+    c = conn.cursor()
+
+    c.execute('''CREATE TABLE IF NOT EXISTS acciones_lote (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        estudiante TEXT,
+        tipo TEXT,
+        nombre TEXT,
+        drive_id TEXT,
+        lote TEXT,
+        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    mensaje = ""
+    if request.method == 'POST':
+        seleccionados = request.form.getlist('items')
+        renombres = request.form.to_dict(flat=False).get('renombres[]', [])
+        drive_service, _ = get_services()
+
+        for item_id in seleccionados:
+            try:
+                drive_service.files().delete(fileId=item_id).execute()
+                c.execute("DELETE FROM acciones_lote WHERE drive_id = ?", (item_id,))
+                conn.commit()
             except Exception as e:
-                mensaje = f"❌ Error al copiar: {e}"
+                mensaje += f"❌ Error al eliminar {item_id}: {e}<br>"
 
-    return render_template_string('''
-        <h2>📁 Copiar carpeta en carpetas de estudiantes</h2>
-        <form method="POST">
-            <label for="carpeta_origen">Enlace o ID de la carpeta a copiar:</label><br>
-            <input type="text" id="carpeta_origen" name="carpeta_origen" style="width: 80%;" required><br><br>
+        for entry in renombres:
+            if '::' in entry:
+                id_actual, nuevo_nombre = entry.split('::', 1)
+                try:
+                    drive_service.files().update(fileId=id_actual, body={'name': nuevo_nombre}).execute()
+                    c.execute("UPDATE acciones_lote SET nombre = ? WHERE drive_id = ?", (nuevo_nombre, id_actual))
+                    conn.commit()
+                    mensaje += f"✅ Renombrado {nuevo_nombre}<br>"
+                except Exception as e:
+                    mensaje += f"❌ Error al renombrar {id_actual}: {e}<br>"
 
-            <label for="nombre_base">Nombre de la carpeta de destino en cada estudiante (ej: ENTREGAS):</label><br>
-            <input type="text" id="nombre_base" name="nombre_base" style="width: 80%;" required><br><br>
+    c.execute("SELECT DISTINCT lote FROM acciones_lote ORDER BY fecha DESC")
+    lotes = c.fetchall()
 
-            <button type="submit">Copiar a todos</button>
-        </form>
-        <p>{{ mensaje }}</p>
-    ''', mensaje=mensaje)
+    lotes_data = {}
+    for (lote,) in lotes:
+        c.execute("SELECT estudiante, tipo, nombre, drive_id FROM acciones_lote WHERE lote = ? ORDER BY estudiante, tipo", (lote,))
+        resultados = c.fetchall()
+        estructura = {}
+        for estudiante, tipo, nombre, drive_id in resultados:
+            clave = f"{nombre}::{tipo}"
+            estructura[clave] = {
+                'nombre': nombre,
+                'tipo': tipo,
+                'drive_id': drive_id,
+                'estudiante': estudiante
+            }
+        lotes_data[lote] = estructura
 
+    def construir_arbol(estructura):
+        arbol = {}
+        for item in estructura.values():
+            partes = item['nombre'].strip('/').split('/')
+            nodo = arbol
+            for parte in partes[:-1]:
+                if parte not in nodo or not isinstance(nodo[parte], dict):
+                    nodo[parte] = {}
+                nodo = nodo[parte]
+
+        return arbol
+
+    def renderizar_arbol(nodo, nivel=0):
+        html = ""
+        for nombre, contenido in nodo.items():
+            if isinstance(contenido, dict) and 'drive_id' in contenido:
+                tipo = '📁' if contenido.get('tipo') == 'carpeta' else '📄'
+                link = f"https://drive.google.com/open?id={contenido['drive_id']}"
+                html += f"<li class='nivel-{nivel}' data-tipo='{contenido.get('tipo', '')}'>{tipo} <a href='{link}' target='_blank'>{nombre}</a></li>"
+            else:
+                html += f"<li class='nivel-{nivel}'>📁 {nombre}<ul>{renderizar_arbol(contenido, nivel + 1)}</ul></li>"
+        return html
+
+
+    arboles = {lote: construir_arbol(estructura) for lote, estructura in lotes_data.items()}
+    arboles_html = {lote: renderizar_arbol(arbol) for lote, arbol in arboles.items()}
+
+    return render_template("ver_lotes.html", lotes_data=lotes_data, mensaje=mensaje, arboles=arboles, arboles_html=arboles_html)
 
 
 @app.route('/enviar-emails')
@@ -533,7 +645,6 @@ def eliminar_contenido_recursivo(drive_service, folder_id, nombre_estudiante):
     except Exception as e:
         print("❌ Error al eliminar contenido en {}: {}".format(nombre_estudiante, e))
 
-
 @app.route('/purgar-carpetas', methods=['GET', 'POST'])
 def purgar_contenido_carpetas():
     mensaje = ""
@@ -561,7 +672,6 @@ def purgar_contenido_carpetas():
         </form>
         <p>{{ mensaje }}</p>
     ''', mensaje=mensaje)
-
 
 @app.route('/purgar-database', methods=['GET', 'POST'])
 def purgar_database():
