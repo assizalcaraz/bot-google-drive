@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Gestor de Lotes{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="/static/estilos.css">
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -15,8 +17,42 @@
 </head>
 <body>
     <div class="navbar">
-        <button class="toggle-btn" onclick="toggleMode()">🌓 Modo claro/oscuro</button>
-    </div>
+        <svg class="logo" viewBox="219.136 204.8 1230.848 591.872" xmlns="http://www.w3.org/2000/svg" version="1.0" preserveAspectRatio="xMidYMid meet">
+        
+            <defs>
+              <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#561928">
+                  <animate attributeName="stop-color" values="#561928;#485f99;#8a0e2e;#6a2ba2;#485f99;#561928" dur="10s" repeatCount="indefinite" />
+                </stop>
+                <stop offset="100%" stop-color="#485f99">
+                  <animate attributeName="stop-color" values="#485f99;#8a0e2e;#561928;#6a2ba2;#561928;#485f99" dur="10s" repeatCount="indefinite" />
+                </stop>
+                <animateTransform attributeName="gradientTransform" attributeType="XML"
+                  type="rotate"
+                  from="0 834 500"
+                  to="360 834 500"
+                  dur="12s"
+                  repeatCount="indefinite"
+                  additive="sum" />
+              </linearGradient>
+            </defs>
+          
+            <g fill="none" stroke="url(#grad1)" stroke-width="80" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,1024) scale(0.1,-0.1)">
+              <path d="M4021 7289 c-857 -90 -1556 -691 -1771 -1522 -81 -316 -81 -687 -1 -1000 71 -272 211 -550 395 -778 496 -618 1315 -889 2097 -693 482 120 923 432 1199 847 202 303 311 616 341 979 40 468 -118 988 -420 1383 -70 92 -236 259 -342 344 -409 330 -971 495 -1498 440z m574 -279 c1000 -214 1617 -1158 1399 -2139 -96 -432 -369 -825 -753 -1082 -285 -192 -582 -289 -937 -306 -693 -33 -1366 363 -1679 987 -202 404 -246 830 -131 1254 168 612 652 1094 1262 1257 192 51 265 59 514 55 182 -4 244 -8 325 -26z"/>
+              <path d="M5196 6017 c-93 -17 -122 -26 -132 -42 -7 -11 -22 -85 -34 -165 -12 -80 -41 -253 -65 -385 -78 -427 -87 -487 -75 -499 7 -7 40 -5 112 7 153 27 150 25 168 136 l15 94 135 27 c74 15 156 30 182 33 l47 7 40 -85 c22 -47 43 -85 48 -85 25 0 231 34 250 41 13 5 23 14 23 21 0 18 -140 256 -454 778 -96 158 -78 150 -260 117z m168 -447 l76 -147 -106 -17 c-58 -10 -108 -16 -110 -13 -5 5 10 164 27 281 14 95 9 100 113 -104z"/>
+              <path d="M4485 5881 c-137 -30 -135 -29 -135 -57 0 -20 77 -442 95 -519 2 -12 -18 4 -51 40 -180 194 -392 414 -409 424 -17 10 -44 8 -134 -8 -63 -11 -119 -25 -125 -31 -7 -7 -2 -50 18 -143 30 -147 67 -343 121 -641 19 -109 38 -202 41 -207 3 -5 20 -9 37 -9 43 1 197 36 209 48 7 7 -8 103 -46 293 -31 155 -55 284 -53 286 2 2 26 -25 53 -59 27 -35 134 -150 238 -255 149 -152 195 -193 215 -193 45 0 199 31 216 44 15 10 15 18 6 52 -6 21 -27 132 -46 246 -19 114 -51 278 -70 365 -18 87 -39 190 -45 228 -17 110 -19 115 -38 114 -9 -1 -53 -9 -97 -18z"/>
+              <path d="M3438 5680 c-53 -10 -102 -21 -109 -25 -17 -11 -5 -103 51 -392 28 -139 50 -266 50 -283 0 -79 -53 -135 -141 -149 -99 -16 -165 21 -194 108 -8 25 -39 168 -69 316 -69 344 -64 325 -90 325 -41 -1 -207 -37 -218 -48 -11 -11 -9 -23 84 -512 37 -197 69 -270 150 -345 74 -69 150 -95 275 -95 262 0 448 147 460 364 3 54 -6 130 -40 316 -25 135 -50 279 -57 320 -18 118 -19 120 -38 119 -9 0 -61 -9 -114 -19z"/>
+            </g>
+          </svg>
+          
+           
+          
+    
+          
+        
+      </div>
+      
+      
 
     {% block content %}
     <!-- Contenido principal definido en cada vista -->

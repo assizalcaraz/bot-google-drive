@@ -14,8 +14,8 @@
         <h3>Paso 2️⃣: Compartí la carpeta base con el bot</h3>
         <small>📌 Para que el sistema funcione correctamente, debés compartir esta carpeta con el bot utilizando el siguiente correo:</small><br>
         <div style="background: #111; padding: 10px; margin: 10px 0; border-radius: 5px; display: inline-block;">
-            <code id="bot-email" style="font-size: 1rem; color: #0ff;">flask-bot@sixth-beaker-456020-j9.iam.gserviceaccount.com</code>
-            <button onclick="copiarEmail()" style="margin-left: 10px; padding: 4px 8px; cursor: pointer;">📋 Copiar</button>
+            <code id="bot-email" style="font-size: 1rem; color: rgb(231, 35, 74);">flask-bot@sixth-beaker-456020-j9.iam.gserviceaccount.com</code>
+            <button class="btn-copiar" onclick="copiarEmail()" style="margin-left: 10px; padding: 4px 8px; cursor: pointer;">📋 Copiar</button>
         </div>
         <small>Esto se hace desde la ventana de compartir en Google Drive. Asegurate de darle permisos de <strong>Editor</strong> al bot.</small><br>
         <small>Abajo podés ver un ejemplo de cómo hacerlo:</small><br>
@@ -29,7 +29,7 @@
 
         <h3>Paso 4️⃣: sólo necesitás completar las columnas <strong>nombre</strong> y <strong>mail</strong> con los datos de tus estudiantes. El sistema se encargará de generar automáticamente el contenido de la columna <strong>link</strong></h3>
         
-        <button type="submit" style="background-color: green; color: white; padding: 10px;">Iniciar proyecto</button>
+        <button type="submit">Iniciar proyecto</button>
     </form>
 
     <hr style="margin: 2rem 0;">
@@ -42,7 +42,7 @@
 </div>
 
 {% if mostrar_boton %}
-    <a href="/copiar-carpeta" class="btn-ir" style="display: inline-block; margin-top: 1rem; background: blue; color: white; padding: 10px;">➡️ Continuar a copiar carpetas</a>
+    <a href="/copiar-carpeta" class="btn-ir">➡️ Continuar a copiar carpetas</a>
 {% endif %}
 
 <script>
