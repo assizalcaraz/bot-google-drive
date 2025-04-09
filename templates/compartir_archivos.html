@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="contenedor">
+    <h2>📂 Compartir archivos con estudiantes</h2>
+    <p>
+        En esta sección podés distribuir materiales en las carpetas personales de cada estudiante.
+        Existen dos formas de hacerlo:
+    </p>
+    <ul>
+        <li><strong>Copiar una carpeta completa:</strong> el contenido se replica físicamente en cada carpeta de estudiante.</li>
+        <li><strong>Crear un acceso directo:</strong> se genera un atajo al archivo o carpeta, sin duplicar el material.</li>
+    </ul>
+    <p>
+        Ambas opciones colocan el material dentro de las carpetas personales de cada estudiante, pero usar accesos evita redundancia y ahorra espacio si los archivos son pesados.
+    </p>
+
+    <div style="margin-top: 2rem;">
+        <h3>📁 Copiar carpeta</h3>
+        <form method="POST" action="/copiar-carpeta">
+            <label for="carpeta_origen">Enlace o ID de la carpeta a copiar:</label><br>
+            <input type="text" id="carpeta_origen" name="carpeta_origen" style="width: 80%;" required><br><br>
+
+            <label for="nombre_base">Nombre de la carpeta destino en cada estudiante:</label><br>
+            <input type="text" id="nombre_base" name="nombre_base" placeholder="Ej: ENTREGAS" style="width: 80%;" required><br><br>
+
+            <button type="submit" style="background-color: teal; color: white; padding: 8px 16px;">Copiar en todas las carpetas</button>
+        </form>
+    </div>
+
+    <hr style="margin: 2rem 0;">
+
+    <div>
+        <h3>🔗 Crear acceso directo</h3>
+        <form method="POST" action="/accesos">
+            <label for="archivo_url">Link del archivo o carpeta a vincular:</label><br>
+            <input type="text" id="archivo_url" name="archivo_url" style="width: 80%;" required><br><br>
+
+            <label for="nombre_acceso">Nombre base del acceso:</label><br>
+            <input type="text" id="nombre_acceso" name="nombre_acceso" style="width: 80%;" placeholder="Ej: Guía TP1"><br><br>
+
+            <button type="submit" style="background-color: navy; color: white; padding: 8px 16px;">Crear accesos</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

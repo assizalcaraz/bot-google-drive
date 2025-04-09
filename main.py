@@ -43,50 +43,94 @@ c.execute('''
 conn.commit()
 
 
-
 @app.route('/')
-def index():
-    print("📡 Iniciando procesamiento de hoja...")
+def redireccion_inicial():
     try:
+        global PARENT_FOLDER_ID
+        if PARENT_FOLDER_ID:
+            return redirect("/compartir-archivos")
+        else:
+            return redirect("/configuracion")
+    except:
+        return redirect("/configuracion")
+
+@app.route('/configuracion')
+def vista_configuracion():
+    return render_template("inicio_configuracion.html")
+
+@app.route('/compartir-archivos')
+def compartir_archivos():
+    return render_template("compartir_archivos.html")
+
+@app.route('/iniciar-proyecto', methods=['POST'])
+def iniciar_proyecto():
+    carpeta_base = request.form.get("carpeta_base")
+    sheet_url = request.form.get("sheet_url")
+
+    if not carpeta_base or not sheet_url:
+        return render_template("inicio_configuracion.html", mensaje="❌ Faltan datos. Por favor completá ambos campos.", imagen="/static/ejemplo_encabezados.png")
+
+    log = []
+    try:
+        global PARENT_FOLDER_ID, LISTA_ESTUDIANTES_URL
+        PARENT_FOLDER_ID = carpeta_base.split("/folders/")[-1].split("?")[0]
+        LISTA_ESTUDIANTES_URL = sheet_url
+
         _, gc = get_services()
         sheet = gc.open_by_url(LISTA_ESTUDIANTES_URL).sheet1
         data = sheet.get_all_records(expected_headers=["nombre", "mail", "link"])
 
-        if not data:
-            print("⚠️ No se encontraron datos en la hoja.")
-            return "No se encontraron datos en la hoja."
-
-        creados = 0
+        conn = sqlite3.connect('database.db', check_same_thread=False)
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS estudiantes (
+                nombre TEXT,
+                mail TEXT,
+                carpeta TEXT
+            )
+        """)
 
         for row_index, row in enumerate(data, start=2):
             nombre = row.get('nombre')
             mail = row.get('mail')
 
             if not nombre or not mail:
-                print(f"⚠️ Fila inválida: {row}")
+                log.append(f"⚠️ Fila vacía o inválida en fila {row_index}.")
                 continue
 
             c.execute("SELECT * FROM estudiantes WHERE mail = ?", (mail,))
             if c.fetchone():
-                print(f"🔁 Ya procesado: {nombre} ({mail})")
+                log.append(f"🔁 Ya procesado: {nombre} ({mail})")
                 continue
 
             link = crear_carpeta_y_compartir(nombre, mail, PARENT_FOLDER_ID)
             if not link:
+                log.append(f"❌ Error al crear carpeta para {nombre} ({mail})")
                 continue
 
-            actualizar_link_en_hoja(sheet, row_index, link)
+            sheet.update_cell(row_index, 3, link)
             c.execute("INSERT INTO estudiantes (nombre, mail, carpeta) VALUES (?, ?, ?)", (nombre, mail, link))
             conn.commit()
-            print(f"✅ Enlace indexado para {nombre}")
+            log.append(f"✅ Carpeta creada para {nombre}")
 
-            creados += 1
-
-        return f"Proceso finalizado. Carpetas nuevas: {creados}"
+        return render_template("inicio_configuracion.html", mensaje="Proceso finalizado. Asegurate de haber compartido previamente la carpeta base con el bot: <code>flask-bot@sixth-beaker-456020-j9.iam.gserviceaccount.com</code>", log=log, mostrar_boton=True, imagen="/static/ejemplo_encabezados.png")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
-        return f"Ocurrió un error: {e}"
+        log.append(f"❌ Error general: {e}")
+        return render_template("inicio_configuracion.html", mensaje="❌ Ocurrió un error inesperado.", log=log, mostrar_boton=False, imagen="/static/ejemplo_encabezados.png")
+
+# En templates/inicio_configuracion.html:
+
+# Este archivo será una landing para docentes no técnicos.
+# Deben poder:
+# 1. Pegar link de carpeta base (campo input).
+# 2. Pegar link de hoja de cálculo (tabla con encabezados nombre, mail, link).
+# 3. Botón para "Iniciar proyecto": crea carpetas base.
+# 4. Si ya existen carpetas base, permitir seleccionar una carpeta o archivo a copiar dentro de cada carpeta de estudiante.
+
+# Luego de este paso, redirigir automáticamente a /copiar-carpeta y mostrar también la vista /accesos.
+
+
 
 # Función para gestionar reintentos exponenciales
 def reintento_exponencial(request_func, *args, **kwargs):

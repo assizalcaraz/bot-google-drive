@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="contenedor">
+    <h2>🛠️ Configuración inicial del proyecto</h2>
+    <p>Esta sección está pensada para docentes. A continuación, seguí estos pasos para iniciar el proyecto correctamente:</p>
+
+    <form method="POST" action="/iniciar-proyecto">
+        <h3>Paso 1️⃣: Ingresá el link a tu carpeta base en Drive</h3>
+        <p>📁 Lo ideal es crear una carpeta nueva exclusivamente para este proyecto. El sistema se encargará de generar dentro de ella varias subcarpetas organizadas automáticamente.</p>
+        <label for="carpeta_base">📁 Link a la carpeta base del proyecto en Drive:</label><br>
+        <input type="url" id="carpeta_base" name="carpeta_base" style="width: 90%;" required><br><br>
+
+        <h3>Paso 2️⃣: Compartí la carpeta base con el bot</h3>
+        <small>📌 Para que el sistema funcione correctamente, debés compartir esta carpeta con el bot utilizando el siguiente correo:</small><br>
+        <div style="background: #111; padding: 10px; margin: 10px 0; border-radius: 5px; display: inline-block;">
+            <code id="bot-email" style="font-size: 1rem; color: #0ff;">flask-bot@sixth-beaker-456020-j9.iam.gserviceaccount.com</code>
+            <button onclick="copiarEmail()" style="margin-left: 10px; padding: 4px 8px; cursor: pointer;">📋 Copiar</button>
+        </div>
+        <small>Esto se hace desde la ventana de compartir en Google Drive. Asegurate de darle permisos de <strong>Editor</strong> al bot.</small><br>
+        <small>Abajo podés ver un ejemplo de cómo hacerlo:</small><br>
+        <img src="/static/permisos_bot.png" alt="Instrucción para compartir con el bot" style="max-width: 500px; width: 100%; border: 1px solid #ccc; margin-bottom: 1rem;">
+
+        <h3>Paso 3️⃣: Creá una hoja de cálculo dentro de tu carpeta base y pegá su enlace</h3>        
+        <label for="sheet_url">🗒️ Link a la hoja de cálculo con los estudiantes:</label><br>
+        <input type="url" id="sheet_url" name="sheet_url" style="width: 90%;" required><br><br>
+        <img src="/static/ejemplo_encabezados.png" alt="ejemplo encabezados" style="max-width: 600px; width: 100%; border: 1px solid #ccc; margin-bottom: 1rem;">
+        <small>📌 Esta hoja debe estar dentro de tu carpeta base y contener exactamente las columnas: <strong>nombre</strong>, <strong>mail</strong> y <strong>link</strong>. Es importante que respetes la ortografía y minúsculas para que se procese correctamente.</small><br><br>
+
+        <h3>Paso 4️⃣: sólo necesitás completar las columnas <strong>nombre</strong> y <strong>mail</strong> con los datos de tus estudiantes. El sistema se encargará de generar automáticamente el contenido de la columna <strong>link</strong></h3>
+        
+        <button type="submit" style="background-color: green; color: white; padding: 10px;">Iniciar proyecto</button>
+    </form>
+
+    <hr style="margin: 2rem 0;">
+
+    <h3>📌 Acciones disponibles si ya tenés carpetas creadas</h3>
+    <ul>
+        <li><a href="/copiar-carpeta">📁 Copiar una carpeta en todas las carpetas base de los estudiantes</a></li>
+        <li><a href="/accesos">🔗 Crear accesos directos a un archivo o carpeta</a></li>
+    </ul>
+</div>
+
+{% if mostrar_boton %}
+    <a href="/copiar-carpeta" class="btn-ir" style="display: inline-block; margin-top: 1rem; background: blue; color: white; padding: 10px;">➡️ Continuar a copiar carpetas</a>
+{% endif %}
+
+<script>
+    function copiarEmail() {
+        const email = document.getElementById('bot-email').innerText;
+        navigator.clipboard.writeText(email).then(() => {
+            alert("📬 Dirección del bot copiada al portapapeles");
+        });
+    }
+</script>
+
+{% endblock %}
