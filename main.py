@@ -88,47 +88,49 @@ def enviar_email(destinatario, nombre, link):
 
 # Función para crear las carpetas y compartir el enlace
 def crear_carpeta_y_compartir(nombre, mail, parent_folder_id):
-    try:
-        drive_service, _ = get_services()
+    drive_service, _ = get_services()
 
-        # Crear carpeta en Google Drive
+    try:
+        query = f"'{parent_folder_id}' in parents and name = '{nombre}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        resultados = drive_service.files().list(q=query, fields='files(id, name)').execute()
+        archivos = resultados.get('files', [])
+
+        if archivos:
+            print(f"🔁 Carpeta ya existente: {nombre}. Se omite la creación e indexación.")
+            return ""
+
         folder_metadata = {
             'name': nombre,
             'mimeType': 'application/vnd.google-apps.folder',
             'parents': [parent_folder_id]
         }
-
-        # Crear carpeta en Google Drive, asegurándonos de que la respuesta sea procesada correctamente
         folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
-
-        folder_id = folder.get('id')  # Recuperamos el ID de la carpeta creada
-
-        # Link de la carpeta
+        folder_id = folder.get('id')
         link = f"https://drive.google.com/drive/folders/{folder_id}"
-
-        # COMENTADO: Compartir la carpeta con el correo del estudiante (actualmente no se realiza)
-        # permission = {
-        #     'type': 'user',
-        #     'role': 'reader',  # 'reader' para solo lectura
-        #     'emailAddress': mail
-        # }
-        # drive_service.permissions().create(fileId=folder_id, body=permission).execute()
-        # print(f"✅ Carpeta compartida con {mail} para {nombre}")
-
-        return link  # Devolvemos solo el link de la carpeta creada sin compartirla
-
+        print(f"✅ Carpeta creada: {nombre} → {link}")
     except Exception as e:
-        print(f"❌ Error al crear la carpeta para {nombre}: {e}")
+        print(f"❌ Error al crear/verificar carpeta para {nombre}: {e}")
         return ""
 
+    try:
+        permission = {
+            'type': 'user',
+            'role': 'writer',
+            'emailAddress': mail
+        }
+        drive_service.permissions().create(fileId=folder_id, body=permission).execute()
+        print(f"✅ Permisos asignados a {mail}")
+    except Exception as e:
+        print(f"❌Error al otorgar permisos. Procesa manualmente o intente nuevamente más tarde.{mail}: {e}")
 
-@app.route('/')
+    return link
+
+
 @app.route('/')
 def index():
     print("📡 Iniciando procesamiento de hoja...")
-
     try:
-        _, gc = get_services()  # Asegúrate de que esto está funcionando correctamente
+        _, gc = get_services()
         sheet = gc.open_by_url(SHEET_URL).sheet1
         data = sheet.get_all_records(expected_headers=["nombre", "mail", "link"])
 
@@ -138,7 +140,7 @@ def index():
 
         creados = 0
 
-        for row_index, row in enumerate(data, start=2):  # Comienza desde la fila 2 (debido a la cabecera)
+        for row_index, row in enumerate(data, start=2):
             nombre = row.get('nombre')
             mail = row.get('mail')
 
@@ -151,17 +153,15 @@ def index():
                 print(f"🔁 Ya procesado: {nombre} ({mail})")
                 continue
 
-            # Aquí se llama a la función con solo 3 parámetros: nombre, mail y PARENT_FOLDER_ID
             link = crear_carpeta_y_compartir(nombre, mail, PARENT_FOLDER_ID)
+            if not link:
+                continue
 
-            # Actualizar el enlace en la hoja de cálculo
             actualizar_link_en_hoja(sheet, row_index, link)
-            
-            # Guardar en la base de datos
             c.execute("INSERT INTO estudiantes (nombre, mail, carpeta) VALUES (?, ?, ?)", (nombre, mail, link))
             conn.commit()
-            print(f"✅ Carpeta creada: {nombre} → {link}")
-            
+            print(f"✅ Enlace indexado para {nombre}")
+
             creados += 1
 
         return f"Proceso finalizado. Carpetas nuevas: {creados}"
@@ -303,6 +303,46 @@ def descargar_con_progreso():
             yield f"<p class='error'>❌ Error: {e}</p>"
 
     return Response(generar(), mimetype='text/html')
+
+
+
+@app.route('/mostrar-datos')
+def mostrar_datos():
+    try:
+        conn = sqlite3.connect('database.db', check_same_thread=False)
+        c = conn.cursor()
+
+        # Seleccionar todos los registros
+        c.execute("SELECT nombre, mail, carpeta FROM estudiantes")
+        registros = c.fetchall()
+
+        # Renderizar HTML con numeración
+        return render_template_string("""
+            <h2>📋 Lista de Estudiantes</h2>
+            <table border="1" cellpadding="5" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Correo</th>
+                        <th>Carpeta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for registro in registros %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ registro[0] }}</td>
+                            <td>{{ registro[1] }}</td>
+                            <td><a href="{{ registro[2] }}" target="_blank">Ver carpeta</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        """, registros=registros)
+    
+    except Exception as e:
+        return f"<p>Error al mostrar los datos: {e}</p>"
 
 
 # Función de purga de la base de datos
