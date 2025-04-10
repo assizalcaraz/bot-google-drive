@@ -3,3 +3,5 @@ DESCARGAS
 2025_1
 database.db
 __pycache__
+credentials.json
+.DS_Store
