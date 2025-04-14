@@ -21,7 +21,7 @@
 
 Primero, ingresá el enlace de tu carpeta base en Google Drive y compartila con el bot:
 
-<img src="./screenshots/configuracion-inicial.png" width="800"/>
+<img src="/screenshots/configuracion.png" width="800"/>
 
 ---
 
