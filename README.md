@@ -1,6 +1,8 @@
-# DriveBot
+# 📁 Google_Drive_Bot
 
 **DriveBot** es una aplicación automatizada construida con Flask que permite gestionar archivos y carpetas en Google Drive usando Google Sheets como base de datos. Diseñada para funcionar fácilmente con Docker, es ideal para entornos educativos o colaborativos que requieren organizar materiales por estudiante.
+
+---
 
 ## 🚀 Características principales
 
@@ -9,13 +11,43 @@
 - 🧠 Guarda y reutiliza los enlaces creados.
 - 📊 Interfaz simple basada en Flask.
 - 🐳 Compatible con Docker y lista para producción.
-- 🧰 Instalador para Windows en desarrollo (ver sección 👇).
+- 🧰 Instalador para Windows en desarrollo.
 
-## 📦 Requisitos
+---
 
-- Python 3.10+
-- Credenciales de una cuenta de Google con permisos en Drive y Sheets
-- Docker y Git (si usás el instalador)
+## 📸 Capturas de pantalla
+
+### 🔧 Configuración inicial del proyecto
+
+Primero, ingresá el enlace de tu carpeta base en Google Drive y compartila con el bot:
+
+<img src="./screenshots/configuracion-inicial.png" width="800"/>
+
+---
+
+### 📤 Compartir archivos con estudiantes
+
+Copiá carpetas completas o creá accesos directos dentro de las carpetas personales:
+
+<img src="./screenshots/compartir-archivos.png" width="800"/>
+
+---
+
+### 📂 Visualización de lotes generados
+
+Explorá la estructura de carpetas generadas automáticamente para cada lote:
+
+<img src="./screenshots/visualizacion-lotes.png" width="800"/>
+
+---
+
+### 👨‍🎓 Vista del estudiante
+
+Así se ve para un estudiante dentro de su Google Drive:
+
+<img src="./screenshots/vista-estudiante.png" width="600"/>
+
+---
 
 ## ⚙️ Instalación
 
@@ -71,4 +103,4 @@ MIT License
 
 ---
 
-_Creado por José Assiz - 2025-04-10_
+Creado por Assiz Alcaraz Baxter - 2025-04-10
