@@ -21,7 +21,7 @@
 
 Primero, ingresá el enlace de tu carpeta base en Google Drive y compartila con el bot:
 
-<img src="./screenshots/configuracion-inicial.png" width="800"/>
+<img src="/screenshots/configuracion.png" width="800"/>
 
 ---
 
@@ -29,7 +29,7 @@ Primero, ingresá el enlace de tu carpeta base en Google Drive y compartila con 
 
 Copiá carpetas completas o creá accesos directos dentro de las carpetas personales:
 
-<img src="./screenshots/compartir-archivos.png" width="800"/>
+<img src="/screenshots/compartir.png" width="800"/>
 
 ---
 
@@ -37,7 +37,7 @@ Copiá carpetas completas o creá accesos directos dentro de las carpetas person
 
 Explorá la estructura de carpetas generadas automáticamente para cada lote:
 
-<img src="./screenshots/visualizacion-lotes.png" width="800"/>
+<img src="/screenshots/lotes.png" width="800"/>
 
 ---
 
@@ -45,7 +45,7 @@ Explorá la estructura de carpetas generadas automáticamente para cada lote:
 
 Así se ve para un estudiante dentro de su Google Drive:
 
-<img src="./screenshots/vista-estudiante.png" width="600"/>
+<img src="/screenshots/drive.png" width="600"/>
 
 ---
 
