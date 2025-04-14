@@ -19,10 +19,10 @@ app = Flask(__name__)
 
 
 # 📁 Carpeta base de Drive donde se crean las subcarpetas
-PARENT_FOLDER_ID = '14cPfGWwYmjsn-XJY4VteY5zwJqTKOcEc'
+PARENT_FOLDER_ID = ''
 
 # 📄 URL de la hoja de cálculo con los datos de estudiantes
-LISTA_ESTUDIANTES_URL = 'https://docs.google.com/spreadsheets/d/1R5cEBAHo8DltUgrjY5C0oMymGkpHdrz2VSzHP20G260/edit?gid=0#gid=0'
+LISTA_ESTUDIANTES_URL = ''
 
 # 📄 ID del archivo base que será referenciado con accesos directos en cada carpeta de estudiante
 ACCESO_DIRECTO_GUIA_TRABAJOS_ID = "1cpEWP9RaaZSkwOtivCTt-w15V57RtmBzkwcMM41ZLb8"
